@@ -23,7 +23,9 @@ OBJ_EXT = o
 endif
 
 CC	=	$(LIBTOOL_COMPILE_CC) @CC@
+CC_RAW  = @CC@
 CXX	=	$(LIBTOOL_COMPILE_CXX) @CXX@
+CXX_RAW = @CXX@
 LD	=	$(LIBTOOL_LINK) @CXX@
 RM	=	$(LIBTOOL_CLEAN) /bin/rm -f *.lo
 INSTALL = 	$(LIBTOOL_INSTALL) $(GDAL_ROOT)/install-sh -c
