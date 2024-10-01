@@ -92,6 +92,9 @@ typedef struct
     /*! Array of parts (resolved by CPLHTTPParseMultipartMime()) */
     CPLMimePart *pasMimePart;
 
+    /*! HTTP Response Code */
+    int nHTTPResponseCode;
+
 } CPLHTTPResult;
 
 /*! @cond Doxygen_Suppress */

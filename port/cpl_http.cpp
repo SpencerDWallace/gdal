@@ -1312,11 +1312,13 @@ CPLHTTPResult *CPLHTTPFetchEx(const char *pszURL, CSLConstList papszOptions,
         vsi_l_offset nLength = 0;
         CPLHTTPResult *psResult =
             static_cast<CPLHTTPResult *>(CPLCalloc(1, sizeof(CPLHTTPResult)));
+        psResult->nHTTPResponseCode = 200;
         GByte *pabyData = VSIGetMemFileBuffer(osURL, &nLength, FALSE);
         if (pabyData == nullptr)
         {
             CPLDebug("HTTP", "Cannot find %s", osURL.c_str());
             psResult->nStatus = 1;
+            psResult->nHTTPResponseCode = 404;
             psResult->pszErrBuf =
                 CPLStrdup(CPLSPrintf("HTTP error code : %d", 404));
             CPLError(CE_Failure, CPLE_AppDefined, "%s", psResult->pszErrBuf);
@@ -1596,10 +1598,11 @@ CPLHTTPResult *CPLHTTPFetchEx(const char *pszURL, CSLConstList papszOptions,
 
         long response_code = 0;
         curl_easy_getinfo(http_handle, CURLINFO_RESPONSE_CODE, &response_code);
-        if (response_code != 200)
+        psResult->nHTTPResponseCode = static_cast<int>(response_code);
+        if (psResult->nHTTPResponseCode != 200)
         {
             const double dfNewRetryDelay = CPLHTTPGetNewRetryDelay(
-                static_cast<int>(response_code), dfRetryDelaySecs,
+                psResult->nHTTPResponseCode, dfRetryDelaySecs,
                 reinterpret_cast<const char *>(psResult->pabyData),
                 szCurlErrBuf, pszRetryCodes);
             if (dfNewRetryDelay > 0 && nRetryCount < nMaxRetries)
@@ -1607,8 +1610,7 @@ CPLHTTPResult *CPLHTTPFetchEx(const char *pszURL, CSLConstList papszOptions,
                 CPLError(CE_Warning, CPLE_AppDefined,
                          "HTTP error code: %d - %s. "
                          "Retrying again in %.1f secs",
-                         static_cast<int>(response_code), pszURL,
-                         dfRetryDelaySecs);
+                         psResult->nHTTPResponseCode, pszURL, dfRetryDelaySecs);
                 CPLSleep(dfRetryDelaySecs);
                 dfRetryDelaySecs = dfNewRetryDelay;
                 nRetryCount++;
@@ -1621,6 +1623,7 @@ CPLHTTPResult *CPLHTTPFetchEx(const char *pszURL, CSLConstList papszOptions,
                 psResult->pabyData = nullptr;
                 psResult->nDataLen = 0;
                 psResult->nDataAlloc = 0;
+                psResult->nHTTPResponseCode = 0;
 
                 continue;
             }
@@ -1705,10 +1708,11 @@ CPLHTTPResult *CPLHTTPFetchEx(const char *pszURL, CSLConstList papszOptions,
         }
         else
         {
-            if (response_code >= 400 && response_code < 600)
+            if (psResult->nHTTPResponseCode >= 400 &&
+                psResult->nHTTPResponseCode < 600)
             {
                 psResult->pszErrBuf = CPLStrdup(CPLSPrintf(
-                    "HTTP error code : %d", static_cast<int>(response_code)));
+                    "HTTP error code : %d", psResult->nHTTPResponseCode));
                 CPLError(CE_Failure, CPLE_AppDefined, "%s",
                          psResult->pszErrBuf);
             }
@@ -1994,11 +1998,13 @@ CPLHTTPResult **CPLHTTPMultiFetch(const char *const *papszURL, int nURLCount,
             long response_code = 0;
             curl_easy_getinfo(asHandles[i], CURLINFO_RESPONSE_CODE,
                               &response_code);
+            papsResults[i]->nHTTPResponseCode = static_cast<int>(response_code);
 
-            if (response_code >= 400 && response_code < 600)
+            if (papsResults[i]->nHTTPResponseCode >= 400 &&
+                papsResults[i]->nHTTPResponseCode < 600)
             {
                 papsResults[i]->pszErrBuf = CPLStrdup(CPLSPrintf(
-                    "HTTP error code : %d", static_cast<int>(response_code)));
+                    "HTTP error code : %d", papsResults[i]->nHTTPResponseCode));
             }
         }
 

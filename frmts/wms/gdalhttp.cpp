@@ -190,11 +190,7 @@ CPLErr WMSHTTPFetchMulti(WMSHTTPRequest *pasRequest, int nRequestCount)
             pasRequest[i].Error =
                 psResult->pszErrBuf ? psResult->pszErrBuf : "";
             // Conventions are different between this module and cpl_http...
-            if (psResult->pszErrBuf != nullptr &&
-                strcmp(psResult->pszErrBuf, "HTTP error code : 404") == 0)
-                pasRequest[i].nStatus = 404;
-            else
-                pasRequest[i].nStatus = 200;
+            pasRequest[i].nStatus = psResult->nHTTPResponseCode;
             pasRequest[i].ContentType =
                 psResult->pszContentType ? psResult->pszContentType : "";
             // took ownership of content, we're done with the rest

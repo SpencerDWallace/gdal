@@ -498,23 +498,18 @@ CPLHTTPResult *EEDAHTTPFetch(const char *pszURL, char **papszOptions)
             const char *pszErrorText =
                 psResult->pszErrBuf ? psResult->pszErrBuf : "(null)";
 
-            /* Get HTTP status code */
-            int nHTTPStatus = -1;
-            if (psResult->pszErrBuf != nullptr &&
-                EQUALN(psResult->pszErrBuf,
-                       "HTTP error code : ", strlen("HTTP error code : ")))
-            {
-                nHTTPStatus =
-                    atoi(psResult->pszErrBuf + strlen("HTTP error code : "));
-                if (psResult->pabyData)
-                    pszErrorText =
-                        reinterpret_cast<const char *>(psResult->pabyData);
-            }
-
-            if ((nHTTPStatus == 429 || nHTTPStatus == 500 ||
-                 (nHTTPStatus >= 502 && nHTTPStatus <= 504)) &&
+            if ((psResult->nHTTPResponseCode == 429 ||
+                 psResult->nHTTPResponseCode == 500 ||
+                 (psResult->nHTTPResponseCode >= 502 &&
+                  psResult->nHTTPResponseCode <= 504)) &&
                 i < RETRY_COUNT)
             {
+                if (psResult->pszErrBuf != nullptr && psResult->pabyData)
+                    pszErrorText =
+                        reinterpret_cast<const char *>(psResult->pabyData);
+
+                int nHTTPStatus =
+                    psResult->nStatus ? -1 : psResult->nHTTPResponseCode;
                 CPLError(CE_Warning, CPLE_FileIO,
                          "GET error when downloading %s, HTTP status=%d, "
                          "retrying in %.2fs : %s",
