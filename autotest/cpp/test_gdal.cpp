@@ -7,23 +7,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2006, Mateusz Loskot <mateusz@loskot.net>
 /*
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
 #include "gdal_unit_test.h"
@@ -2562,6 +2546,249 @@ TEST_F(test_gdal, TileMatrixSet)
                 EXPECT_EQ(vmw.mMinTileRow, 3);
                 EXPECT_EQ(vmw.mMaxTileRow, 3);
             }
+        }
+    }
+
+    // TMS v2 with crs.uri
+    {
+        auto poTMS = gdal::TileMatrixSet::parse(
+            "{"
+            "   \"id\" : \"test\","
+            "   \"title\" : \"test\","
+            "   \"uri\" : "
+            "\"http://www.opengis.net/def/tilematrixset/OGC/1.0/test\","
+            "   \"crs\" : {\"uri\": "
+            "\"http://www.opengis.net/def/crs/EPSG/0/4326\"},"
+            "   \"orderedAxes\" : ["
+            "      \"Lat\","
+            "      \"Lon\""
+            "   ],"
+            "   \"wellKnownScaleSet\" : "
+            "\"http://www.opengis.net/def/wkss/OGC/1.0/GoogleCRS84Quad\","
+            "   \"tileMatrices\" : ["
+            "      {"
+            "         \"id\" : \"0\","
+            "         \"scaleDenominator\" : 139770566.0071794390678,"
+            "         \"cellSize\" : 0.3515625,"
+            "         \"cornerOfOrigin\" : \"topLeft\","
+            "         \"pointOfOrigin\" : [ 90, -180 ],"
+            "         \"matrixWidth\" : 4,"
+            "         \"matrixHeight\" : 2,"
+            "         \"tileWidth\" : 256,"
+            "         \"tileHeight\" : 256"
+            "      }"
+            "   ]"
+            "}");
+        EXPECT_TRUE(poTMS != nullptr);
+        if (poTMS)
+        {
+            EXPECT_EQ(poTMS->crs(),
+                      "http://www.opengis.net/def/crs/EPSG/0/4326");
+        }
+    }
+
+    // TMS v2 with crs.wkt
+    {
+        auto poTMS = gdal::TileMatrixSet::parse(
+            "{"
+            "   \"id\" : \"test\","
+            "   \"title\" : \"test\","
+            "   \"uri\" : "
+            "\"http://www.opengis.net/def/tilematrixset/OGC/1.0/test\","
+            "   \"crs\" : {\"wkt\": \"GEOGCRS[\\\"WGS 84\\\","
+            "ENSEMBLE[\\\"World Geodetic System 1984 ensemble\\\","
+            "MEMBER[\\\"World Geodetic System 1984 (Transit)\\\"],"
+            "MEMBER[\\\"World Geodetic System 1984 (G730)\\\"],"
+            "MEMBER[\\\"World Geodetic System 1984 (G873)\\\"],"
+            "MEMBER[\\\"World Geodetic System 1984 (G1150)\\\"],"
+            "MEMBER[\\\"World Geodetic System 1984 (G1674)\\\"],"
+            "MEMBER[\\\"World Geodetic System 1984 (G1762)\\\"],"
+            "MEMBER[\\\"World Geodetic System 1984 (G2139)\\\"],"
+            "MEMBER[\\\"World Geodetic System 1984 (G2296)\\\"],"
+            "ELLIPSOID[\\\"WGS 84\\\",6378137,298.257223563,"
+            "LENGTHUNIT[\\\"metre\\\",1]],"
+            "ENSEMBLEACCURACY[2.0]],"
+            "PRIMEM[\\\"Greenwich\\\",0,"
+            "ANGLEUNIT[\\\"degree\\\",0.0174532925199433]],"
+            "CS[ellipsoidal,2],"
+            "AXIS[\\\"geodetic latitude (Lat)\\\",north,"
+            "ORDER[1],"
+            "ANGLEUNIT[\\\"degree\\\",0.0174532925199433]],"
+            "AXIS[\\\"geodetic longitude (Lon)\\\",east,"
+            "ORDER[2],"
+            "ANGLEUNIT[\\\"degree\\\",0.0174532925199433]],"
+            "USAGE["
+            "SCOPE[\\\"Horizontal component of 3D system.\\\"],"
+            "AREA[\\\"World.\\\"],"
+            "BBOX[-90,-180,90,180]],"
+            "ID[\\\"EPSG\\\",4326]]\" },"
+            "   \"orderedAxes\" : ["
+            "      \"Lat\","
+            "      \"Lon\""
+            "   ],"
+            "   \"wellKnownScaleSet\" : "
+            "\"http://www.opengis.net/def/wkss/OGC/1.0/GoogleCRS84Quad\","
+            "   \"tileMatrices\" : ["
+            "      {"
+            "         \"id\" : \"0\","
+            "         \"scaleDenominator\" : 139770566.0071794390678,"
+            "         \"cellSize\" : 0.3515625,"
+            "         \"cornerOfOrigin\" : \"topLeft\","
+            "         \"pointOfOrigin\" : [ 90, -180 ],"
+            "         \"matrixWidth\" : 4,"
+            "         \"matrixHeight\" : 2,"
+            "         \"tileWidth\" : 256,"
+            "         \"tileHeight\" : 256"
+            "      }"
+            "   ]"
+            "}");
+        EXPECT_TRUE(poTMS != nullptr);
+        if (poTMS)
+        {
+            EXPECT_TRUE(
+                STARTS_WITH(poTMS->crs().c_str(), "GEOGCRS[\"WGS 84\""));
+        }
+    }
+
+    // TMS v2 with crs.wkt with JSON content
+    {
+        auto poTMS = gdal::TileMatrixSet::parse(
+            "{"
+            "   \"id\" : \"test\","
+            "   \"title\" : \"test\","
+            "   \"uri\" : "
+            "\"http://www.opengis.net/def/tilematrixset/OGC/1.0/test\","
+            "   \"crs\" : {\"wkt\": "
+            "{"
+            "  \"type\": \"GeographicCRS\","
+            "  \"name\": \"WGS 84\","
+            "  \"datum_ensemble\": {"
+            "    \"name\": \"World Geodetic System 1984 ensemble\","
+            "    \"members\": ["
+            "      {"
+            "        \"name\": \"World Geodetic System 1984 (Transit)\","
+            "        \"id\": {"
+            "          \"authority\": \"EPSG\","
+            "          \"code\": 1166"
+            "        }"
+            "      },"
+            "      {"
+            "        \"name\": \"World Geodetic System 1984 (G730)\","
+            "        \"id\": {"
+            "          \"authority\": \"EPSG\","
+            "          \"code\": 1152"
+            "        }"
+            "      },"
+            "      {"
+            "        \"name\": \"World Geodetic System 1984 (G873)\","
+            "        \"id\": {"
+            "          \"authority\": \"EPSG\","
+            "          \"code\": 1153"
+            "        }"
+            "      },"
+            "      {"
+            "        \"name\": \"World Geodetic System 1984 (G1150)\","
+            "        \"id\": {"
+            "          \"authority\": \"EPSG\","
+            "          \"code\": 1154"
+            "        }"
+            "      },"
+            "      {"
+            "        \"name\": \"World Geodetic System 1984 (G1674)\","
+            "        \"id\": {"
+            "          \"authority\": \"EPSG\","
+            "          \"code\": 1155"
+            "        }"
+            "      },"
+            "      {"
+            "        \"name\": \"World Geodetic System 1984 (G1762)\","
+            "        \"id\": {"
+            "          \"authority\": \"EPSG\","
+            "          \"code\": 1156"
+            "        }"
+            "      },"
+            "      {"
+            "        \"name\": \"World Geodetic System 1984 (G2139)\","
+            "        \"id\": {"
+            "          \"authority\": \"EPSG\","
+            "          \"code\": 1309"
+            "        }"
+            "      },"
+            "      {"
+            "        \"name\": \"World Geodetic System 1984 (G2296)\","
+            "        \"id\": {"
+            "          \"authority\": \"EPSG\","
+            "          \"code\": 1383"
+            "        }"
+            "      }"
+            "    ],"
+            "    \"ellipsoid\": {"
+            "      \"name\": \"WGS 84\","
+            "      \"semi_major_axis\": 6378137,"
+            "      \"inverse_flattening\": 298.257223563"
+            "    },"
+            "    \"accuracy\": \"2.0\","
+            "    \"id\": {"
+            "      \"authority\": \"EPSG\","
+            "      \"code\": 6326"
+            "    }"
+            "  },"
+            "  \"coordinate_system\": {"
+            "    \"subtype\": \"ellipsoidal\","
+            "    \"axis\": ["
+            "      {"
+            "        \"name\": \"Geodetic latitude\","
+            "        \"abbreviation\": \"Lat\","
+            "        \"direction\": \"north\","
+            "        \"unit\": \"degree\""
+            "      },"
+            "      {"
+            "        \"name\": \"Geodetic longitude\","
+            "        \"abbreviation\": \"Lon\","
+            "        \"direction\": \"east\","
+            "        \"unit\": \"degree\""
+            "      }"
+            "    ]"
+            "  },"
+            "  \"scope\": \"Horizontal component of 3D system.\","
+            "  \"area\": \"World.\","
+            "  \"bbox\": {"
+            "    \"south_latitude\": -90,"
+            "    \"west_longitude\": -180,"
+            "    \"north_latitude\": 90,"
+            "    \"east_longitude\": 180"
+            "  },"
+            "  \"id\": {"
+            "    \"authority\": \"EPSG\","
+            "    \"code\": 4326"
+            "  }"
+            "}"
+            "},"
+            "   \"orderedAxes\" : ["
+            "      \"Lat\","
+            "      \"Lon\""
+            "   ],"
+            "   \"wellKnownScaleSet\" : "
+            "\"http://www.opengis.net/def/wkss/OGC/1.0/GoogleCRS84Quad\","
+            "   \"tileMatrices\" : ["
+            "      {"
+            "         \"id\" : \"0\","
+            "         \"scaleDenominator\" : 139770566.0071794390678,"
+            "         \"cellSize\" : 0.3515625,"
+            "         \"cornerOfOrigin\" : \"topLeft\","
+            "         \"pointOfOrigin\" : [ 90, -180 ],"
+            "         \"matrixWidth\" : 4,"
+            "         \"matrixHeight\" : 2,"
+            "         \"tileWidth\" : 256,"
+            "         \"tileHeight\" : 256"
+            "      }"
+            "   ]"
+            "}");
+        EXPECT_TRUE(poTMS != nullptr);
+        if (poTMS)
+        {
+            EXPECT_TRUE(STARTS_WITH(poTMS->crs().c_str(),
+                                    "{ \"type\": \"GeographicCRS\""));
         }
     }
 }

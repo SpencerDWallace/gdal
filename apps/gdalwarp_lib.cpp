@@ -10,23 +10,7 @@
  * Copyright (c) 2007-2015, Even Rouault <even dot rouault at spatialys.com>
  * Copyright (c) 2015, Faza Mahamood
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
 #include "cpl_port.h"
@@ -2826,8 +2810,17 @@ static GDALDatasetH GDALWarpDirect(const char *pszDest, GDALDatasetH hDstDS,
 
             if (dfTargetRatio > 1.0)
             {
-                int iOvr = -1;
-                for (; iOvr < nOvCount - 1; iOvr++)
+                // Note: keep this logic for overview selection in sync between
+                // gdalwarp_lib.cpp and rasterio.cpp
+                const char *pszOversampligThreshold = CPLGetConfigOption(
+                    "GDALWARP_OVERSAMPLING_THRESHOLD", nullptr);
+                const double dfOversamplingThreshold =
+                    pszOversampligThreshold ? CPLAtof(pszOversampligThreshold)
+                                            : 1.0;
+
+                int iBestOvr = -1;
+                double dfBestRatio = 0;
+                for (int iOvr = -1; iOvr < nOvCount; iOvr++)
                 {
                     const double dfOvrRatio =
                         iOvr < 0
@@ -2836,18 +2829,27 @@ static GDALDatasetH GDALWarpDirect(const char *pszDest, GDALDatasetH hDstDS,
                                   poSrcDS->GetRasterBand(1)
                                       ->GetOverview(iOvr)
                                       ->GetXSize();
-                    const double dfNextOvrRatio =
-                        static_cast<double>(poSrcDS->GetRasterXSize()) /
-                        poSrcDS->GetRasterBand(1)
-                            ->GetOverview(iOvr + 1)
-                            ->GetXSize();
-                    if (dfOvrRatio < dfTargetRatio &&
-                        dfNextOvrRatio > dfTargetRatio)
+
+                    // Is it nearly the requested factor and better (lower) than
+                    // the current best factor?
+                    // Use an epsilon because of numerical instability.
+                    constexpr double EPSILON = 1e-1;
+                    if (dfOvrRatio >=
+                            dfTargetRatio * dfOversamplingThreshold + EPSILON ||
+                        dfOvrRatio <= dfBestRatio)
+                    {
+                        continue;
+                    }
+
+                    iBestOvr = iOvr;
+                    dfBestRatio = dfOvrRatio;
+                    if (std::abs(dfTargetRatio - dfOvrRatio) < EPSILON)
+                    {
                         break;
-                    if (fabs(dfOvrRatio - dfTargetRatio) < 1e-1)
-                        break;
+                    }
                 }
-                iOvr += (psOptions->nOvLevel - OVR_LEVEL_AUTO);
+                const int iOvr =
+                    iBestOvr + (psOptions->nOvLevel - OVR_LEVEL_AUTO);
                 if (iOvr >= 0)
                 {
                     CPLDebug("WARP", "Selecting overview level %d for %s", iOvr,
@@ -5765,11 +5767,21 @@ GDALWarpAppOptionsGetParser(GDALWarpAppOptions *psOptions,
         .action(
             [psOptions](const std::string &s)
             {
-                if (CPLAtofM(s.c_str()) < 10000)
-                    psOptions->dfWarpMemoryLimit =
-                        CPLAtofM(s.c_str()) * 1024 * 1024;
+                bool bUnitSpecified = false;
+                GIntBig nBytes;
+                if (CPLParseMemorySize(s.c_str(), &nBytes, &bUnitSpecified) ==
+                    CE_None)
+                {
+                    if (!bUnitSpecified && nBytes < 10000)
+                    {
+                        nBytes *= (1024 * 1024);
+                    }
+                    psOptions->dfWarpMemoryLimit = static_cast<double>(nBytes);
+                }
                 else
-                    psOptions->dfWarpMemoryLimit = CPLAtofM(s.c_str());
+                {
+                    throw std::invalid_argument("Failed to parse value of -wm");
+                }
             })
         .help(_("Set max warp memory."));
 

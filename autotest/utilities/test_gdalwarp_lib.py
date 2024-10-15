@@ -11,23 +11,7 @@
 # Copyright (c) 2015, Faza Mahamood <fazamhd at gmail dot com>
 # Copyright (c) 2015, Even Rouault <even.rouault at spatialys.com>
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
+# SPDX-License-Identifier: MIT
 ###############################################################################
 
 import collections
@@ -1839,7 +1823,10 @@ def test_gdalwarp_lib_134(tmp_vsimem):
         "",
         src_ds,
         format="MEM",
-        transformerOptions=["SRC_METHOD=NO_GEOTRANSFORM", "DST_METHOD=NO_GEOTRANSFORM"],
+        transformerOptions={
+            "SRC_METHOD": "NO_GEOTRANSFORM",
+            "DST_METHOD": "NO_GEOTRANSFORM",
+        },
         outputBounds=[1, 2, 4, 6],
     )
     assert ds is not None
@@ -4327,3 +4314,19 @@ def test_gdalwarp_lib_average_ten_ten_to_one_one():
         "", src_ds, width=1, height=1, resampleAlg=gdal.GRIORA_Average, format="MEM"
     )
     assert out_ds.GetRasterBand(1).ComputeRasterMinMax() == (1, 1)
+
+
+###############################################################################
+# Test bugfix for https://github.com/OSGeo/gdal/issues/10975
+
+
+def test_gdalwarp_lib_src_is_geog_arc_second():
+
+    out_ds = gdal.Warp(
+        "",
+        "data/geog_arc_second.tif",
+        options="-f MEM -srcnodata 0 -te -81.5 28.5 -81.0 29.0 -t_srs EPSG:4326",
+    )
+    assert out_ds.RasterXSize == 5464
+    assert out_ds.RasterYSize == 5464
+    assert out_ds.GetRasterBand(1).Checksum() == 31856
